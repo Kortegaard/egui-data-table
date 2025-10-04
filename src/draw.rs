@@ -20,6 +20,12 @@ mod tsv;
 
 /* -------------------------------------------- Style ------------------------------------------- */
 
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+enum SelectionType {
+    #[default] RowSelection,
+    CellSelection
+}
+
 /// Style configuration for the table.
 // TODO: Implement more style configurations.
 #[derive(Default, Debug, Clone, Copy)]
@@ -56,6 +62,9 @@ pub struct Style {
     // TODO: describe
     pub show_index: bool,
 
+    // TODO: describe
+    pub selection_type: SelectionType,
+
     /// Color to use for the stroke above/below focused row.
     /// If `None`, defaults to a darkened `warn_fg_color`.
     pub focused_row_stroke: Option<egui::Color32>,
@@ -65,6 +74,7 @@ pub struct Style {
 
     /// See ['ScrollArea::ScrollBarVisibility`] for details.
     pub scroll_bar_visibility: ScrollBarVisibility,
+
 }
 
 /* ------------------------------------------ Rendering ----------------------------------------- */
@@ -464,6 +474,14 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
             let mut editing_cell_rect = Rect::NOTHING;
             let interactive_row = s.is_interactive_row(vis_row);
 
+            let is_selected_row = s.is_selected_row(vis_row);
+
+            if is_selected_row && self.style.selection_type == SelectionType::RowSelection{
+                row.set_selected(true);
+            }else{
+                row.set_selected(edit_state.is_some());
+            }
+
             let check_mouse_dragging_selection = {
                 let s_cci_has_focus = s.cci_has_focus;
                 let s_cci_has_selection = s.has_cci_selection();
@@ -485,7 +503,6 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
 
             // Mark row background filled if being edited.
             // TODO : HERE
-            row.set_selected(edit_state.is_some());
             // row.set_selected(true);
             // // Render row header button
             if self.style.show_index{
@@ -543,6 +560,7 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
                 let is_interactive_cell = interactive_row.is_some_and(|x| x == vis_col);
                 let mut response_consumed = s.is_editing();
 
+
                 let (rect, resp) = row.col(|ui| {
                     let ui_max_rect = ui.max_rect();
 
@@ -561,23 +579,25 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
                         );
                     }
 
-                    if is_interactive_cell {
-                        ui.painter().rect_filled(
-                            ui_max_rect.expand(2.),
-                            no_rounding,
-                            self.style
-                                .bg_selected_highlight_cell
-                                .unwrap_or(visual.selection.bg_fill),
-                        );
-                    } else if selected {
-                        ui.painter().rect_filled(
-                            ui_max_rect.expand(1.),
-                            no_rounding,
-                            self.style
-                                .bg_selected_cell
-                                .unwrap_or(visual.selection.bg_fill.gamma_multiply(0.5)),
-                        );
-                    }
+                    // if self.style.selection_type == SelectionType::CellSelection{
+                        if is_interactive_cell {
+                            ui.painter().rect_filled(
+                                ui_max_rect.expand(2.),
+                                no_rounding,
+                                self.style
+                                    .bg_selected_highlight_cell
+                                    .unwrap_or(visual.selection.bg_fill),
+                            );
+                        } else if selected {
+                            ui.painter().rect_filled(
+                                ui_max_rect.expand(1.),
+                                no_rounding,
+                                self.style
+                                    .bg_selected_cell
+                                    .unwrap_or(visual.selection.bg_fill.gamma_multiply(0.5)),
+                            );
+                        }
+                    //}
 
                     // Actual widget rendering happens within this line.
 

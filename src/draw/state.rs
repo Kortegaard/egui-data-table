@@ -58,6 +58,13 @@ impl VisSelection {
         row.0 >= top.0 && row.0 <= bottom.0 && col.0 >= left.0 && col.0 <= right.0
     }
 
+    pub fn contains_row(&self, ncol: usize, row: VisRowPos) -> bool {
+        let (top, _) = self.0.row_col(ncol);
+        let (bottom, _) = self.1.row_col(ncol);
+
+        row.0 >= top.0 && row.0 <= bottom.0
+    }
+
     pub fn contains_rect(&self, ncol: usize, other: Self) -> bool {
         let (top, left) = self.0.row_col(ncol);
         let (bottom, right) = self.1.row_col(ncol);
@@ -725,6 +732,16 @@ impl<R> UiState<R> {
         }
     }
 
+    pub fn is_selected_row(&self, row: VisRowPos) -> bool {
+        if let CursorState::Select(selections) = &self.cc_cursor {
+            selections
+                .iter()
+                .any(|sel| self.vis_sel_contains_row(*sel, row))
+        } else {
+            false
+        }
+    }
+
     pub fn is_selected_cci(&self, row: VisRowPos, col: VisColumnPos) -> bool {
         self.cci_selection.is_some_and(|(pivot, current)| {
             self.vis_sel_contains(
@@ -764,6 +781,10 @@ impl<R> UiState<R> {
 
     pub fn vis_sel_contains(&self, sel: VisSelection, row: VisRowPos, col: VisColumnPos) -> bool {
         sel.contains(self.p.vis_cols.len(), row, col)
+    }
+
+    pub fn vis_sel_contains_row(&self, sel: VisSelection, row: VisRowPos) -> bool {
+        sel.contains_row(self.p.vis_cols.len(), row)
     }
 
     fn get_highlight_changes<'a>(
