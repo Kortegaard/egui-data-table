@@ -53,6 +53,9 @@ pub struct Style {
     /// How to align cell contents. Default is left-aligned.
     pub cell_align: egui::Align,
 
+    // TODO: describe
+    pub show_index: bool,
+
     /// Color to use for the stroke above/below focused row.
     /// If `None`, defaults to a darkened `warn_fg_color`.
     pub focused_row_stroke: Option<egui::Color32>,
@@ -177,7 +180,11 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
             Color32::GREEN
         };
 
-        let mut builder = egui_extras::TableBuilder::new(ui).column(Column::auto());
+        let mut builder = egui_extras::TableBuilder::new(ui);
+
+        if self.style.show_index{
+            builder = builder.column(Column::auto());
+        }
 
         let iter_vis_cols_with_flag = s
             .vis_cols()
@@ -204,9 +211,11 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
             .scroll_bar_visibility(self.style.scroll_bar_visibility)
             .sense(Sense::click_and_drag().tap_mut(|s| s.set(Sense::FOCUSABLE, true)))
             .header(20., |mut h| {
-                h.col(|_ui| {
-                    // TODO: Add `Configure Sorting` button
-                });
+                if self.style.show_index{
+                    h.col(|_ui| {
+                        // TODO: Add `Configure Sorting` button
+                    });
+                }
 
                 let has_any_hidden_col = s.vis_cols().len() != s.num_columns();
 
@@ -448,7 +457,7 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
             let row_id = s.cc_rows[vis_row.0];
             let prev_row_height = cc_row_heights[vis_row.0];
 
-            let mut row_elem_start = Default::default();
+            let mut row_elem_start = egui::Pos2::default();
 
             // Check if current row is edition target
             let edit_state = s.row_editing_cell(row_id);
@@ -475,45 +484,48 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
             /* -------------------------------- Header Rendering -------------------------------- */
 
             // Mark row background filled if being edited.
+            // TODO : HERE
             row.set_selected(edit_state.is_some());
+            // row.set_selected(true);
+            // // Render row header button
+            if self.style.show_index{
+                let (head_rect, head_resp) = row.col(|ui| {
+                    // Calculate the position where values start.
+                    row_elem_start = ui.max_rect().right_top();
 
-            // Render row header button
-            let (head_rect, head_resp) = row.col(|ui| {
-                // Calculate the position where values start.
-                row_elem_start = ui.max_rect().right_top();
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.separator();
 
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    ui.separator();
+                        if has_any_sort {
+                            ui.monospace(
+                                RichText::from(f!(
+                                    "{:·>width$}",
+                                    row_id.0,
+                                    width = row_id_digits as usize
+                                ))
+                                .strong(),
+                            );
+                        } else {
+                            ui.monospace(
+                                RichText::from(f!("{:>width$}", "", width = row_id_digits as usize))
+                                    .strong(),
+                            );
+                        }
 
-                    if has_any_sort {
                         ui.monospace(
                             RichText::from(f!(
                                 "{:·>width$}",
-                                row_id.0,
-                                width = row_id_digits as usize
+                                vis_row.0 + 1,
+                                width = vis_row_digits as usize
                             ))
-                            .strong(),
+                            .weak(),
                         );
-                    } else {
-                        ui.monospace(
-                            RichText::from(f!("{:>width$}", "", width = row_id_digits as usize))
-                                .strong(),
-                        );
-                    }
-
-                    ui.monospace(
-                        RichText::from(f!(
-                            "{:·>width$}",
-                            vis_row.0 + 1,
-                            width = vis_row_digits as usize
-                        ))
-                        .weak(),
-                    );
+                    });
                 });
-            });
 
-            if check_mouse_dragging_selection(&head_rect, &head_resp) {
-                s.cci_sel_update_row(vis_row);
+                if check_mouse_dragging_selection(&head_rect, &head_resp) {
+                    s.cci_sel_update_row(vis_row);
+                }
             }
 
             /* -------------------------------- Columns Rendering ------------------------------- */
@@ -616,8 +628,13 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
 
                         let xr = ui_max_rect.x_range();
                         let yr = ui_max_rect.y_range();
-                        ui.painter().hline(xr, yr.min, st);
-                        ui.painter().hline(xr, yr.max, st);
+                        // ui.painter().rect_filled(
+                        //     row.layout.rect,
+                        //     no_rounding,
+                        //     egui::Color32::GREEN,
+                        // );
+                        // ui.painter().hline(xr, yr.min, st);
+                        // ui.painter().hline(xr, yr.max, st);
                     }
 
                     if edit_state.is_some_and(|(_, vis)| vis == vis_col) {
@@ -652,7 +669,7 @@ impl<'a, R, V: RowViewer<R>> Renderer<'a, R, V> {
                 /* --------------------------- Context Menu Rendering --------------------------- */
 
                 if self.enable_context_menu{
-                    (resp.clone() | head_resp.clone()).context_menu(|ui| {
+                    (resp.clone()).context_menu(|ui| {
                         response_consumed = true;
                         ui.set_min_size(egui::vec2(250., 10.));
 

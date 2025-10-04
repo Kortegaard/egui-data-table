@@ -72,7 +72,7 @@ pub trait RowViewer<R>: 'static {
     fn num_columns(&mut self) -> usize;
 
     /// Name of the column. This can be dynamically changed.
-    fn column_name(&mut self, column: usize) -> Cow<'static, str> {
+    fn column_name(&mut self, column: usize) -> Cow<'_, str> {
         Cow::Borrowed(
             &" 0 1 2 3 4 5 6 7 8 91011121314151617181920212223242526272829303132"
                 [(column % 10 * 2).pipe(|x| x..x + 2)],
@@ -100,11 +100,14 @@ pub trait RowViewer<R>: 'static {
         is_last_visible_column: bool,
     ) -> TableColumnConfig {
         let _ = column;
-        if is_last_visible_column {
-            TableColumnConfig::remainder().at_least(24.0)
-        } else {
-            TableColumnConfig::auto().resizable(true)
-        }
+        let _ = is_last_visible_column;
+        TableColumnConfig::auto().resizable(true)
+        // if is_last_visible_column {
+        //     TableColumnConfig::remainder().at_least(24.0)
+        // } else {
+        //     //TableColumnConfig::exact(24.0).resizable(true)
+        //     TableColumnConfig::auto().resizable(true)
+        // }
     }
 
     /// Returns if given column is 'sortable'
